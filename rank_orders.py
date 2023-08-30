@@ -356,15 +356,84 @@ if __name__ == "__main__":
     # print("Time to check coverage: " + str(end - start))
 
     #target_path = input("Please enter the target path for generated orders: ")
-    target_path = "/Users/satvikeltepu/Desktop/GenerateOrders/generate_orders_java/outputs/inter/Activiti/Activiti/activiti-spring-boot-starter/b11f757"
-    output_file = "/Users/satvikeltepu/Desktop/GenerateOrders/generate_orders_java/output.txt"
+    # target_path = "/Users/satvikeltepu/Desktop/GenerateOrders/generate_orders_java/outputs/inter/Activiti/Activiti/activiti-spring-boot-starter/b11f757"
+    # output_file = "/Users/satvikeltepu/Desktop/GenerateOrders/generate_orders_java/output.txt"
+    # t = int(input("Please enter a t-value: "))
+    # orders = get_orders(target_path)
+    # manual_orders = orders.copy()
+    # sorted_orders = sort_orders(manual_orders, t)
+    # approxcov_orders = orders.copy()
+    # start = time.time()
+    # sorted_approxcov = sort_orders_approxcov(target_path, approxcov_orders, t, output_file)
+    # print(sorted_orders == sorted_approxcov)
+    # end = time.time()
+    # print("Number of Orders: " + str(len(orders)))
+    # print("Time elapsed: " + str(end-start))
+
+    data = []
+    row = []
+    t = int(input("Please enter a t-value: "))
+    target_path = input("Please enter the target path for generated orders: ")
+    path_components = target_path.split("/")
+    project_name = path_components[-2]
+    module_name = path_components[-3]
+
+    # project name
+    row.append(project_name)
+
+    # module name
+    row.append(module_name)
+
+    # t value
+    row.append(t)
+
+    github_slug = input("Enter the github slug: ")
+    module = input("Enter the module name (or press Enter to match any): ")
+    target_path_polluter_cleaner = input("Please enter the target path for polluter cleaner list: ")
+    result,unique_od_test_list = get_victims_or_brittle(github_slug, module,target_path_polluter_cleaner)
     orders = get_orders(target_path)
-    manual_orders = orders.copy()
-    sorted_orders = sort_orders(manual_orders, 2)
-    approxcov_orders = orders.copy()
-    start = time.time()
-    sorted_approxcov = sort_orders_approxcov(target_path, approxcov_orders, 2, output_file)
-    print(sorted_orders == sorted_approxcov)
-    end = time.time()
-    print("Number of Orders: " + str(len(orders)))
-    print("Time elapsed: " + str(end-start))
+    
+    sorted_orders = sort_orders(orders, t)
+    copy_of_results_sorted = result.copy()
+    copy_of_unique_od_test_list_sorted = unique_od_test_list.copy()
+    sorted_order_count, OD_found, not_found_ODs = find_OD_in_sorted_orders(sorted_orders, copy_of_results_sorted ,copy_of_unique_od_test_list_sorted)
+    
+    # inter/intra-class fraction
+    row.append(sorted_order_count)
+
+    orders_greedy = orders.copy()  # Create a copy of the original orders
+    results_greedy = result.copy()
+    unique_od_test_list_greedy=unique_od_test_list.copy()
+    sorted_order_count_greedy, OD_found_greedy, not_found_ODs_greedy= find_OD_in_sorted_orders_greedy(orders_greedy , results_greedy ,unique_od_test_list_greedy)
+
+    # inter/intra-class theoretical fraction
+    row.append(sorted_order_count_greedy)
+
+    num_shuffle_iterations = 1000
+    total_rank_point=0
+    total_rank_point_greedy=0
+    for i in range(num_shuffle_iterations):
+        shuffled_orders = orders.copy()  # Create a copy of the original orders
+        copy_of_results = result.copy()
+        copy_of_unique_od_test_list = unique_od_test_list.copy()
+        random_seed = i  # Use the iteration index as the random seed
+        random.seed(random_seed)
+        random.shuffle(shuffled_orders)
+        order_count, OD_found, not_found_ODs = find_OD_in_sorted_orders(shuffled_orders, copy_of_results, copy_of_unique_od_test_list)
+        print(order_count)
+        total_rank_point=total_rank_point+order_count
+        sorted_order_count_greedy, OD_found_greedy, not_found_ODs_greedy= find_OD_in_sorted_orders_greedy(shuffled_orders, result)
+        total_rank_point_greedy=total_rank_point_greedy+sorted_order_count_greedy
+    
+    # average number of orders needed 
+    row.append(total_rank_point/num_shuffle_iterations)
+
+    # add row to data
+    data.append(row)
+
+    csv_file = input("Enter the path to the CSV file: ")
+    with open(csv_file, 'w', newline='') as csv_file:
+        csv_writer = csv.writer(csv_file)
+        for row in data:
+            csv_writer.writerow(row)
+
